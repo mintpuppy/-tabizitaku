@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F5F2EC">
+<meta name="description" content="季節ごとに持ち物を管理できる、静かな旅行準備チェックリスト。">
+<meta name="color-scheme" content="light">
+<title>旅の準備</title>
+
+<!-- ホーム画面に追加したときの設定（相対パスのみ） -->
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+<link rel="apple-touch-icon-precomposed" sizes="180x180" href="./apple-touch-icon.png">
+<link rel="icon" href="./favicon-32.png" sizes="32x32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="旅の準備">
+<meta name="format-detection" content="telephone=no">
+<style>
+:root{
+  --bg:#F5F2EC;
+  --main:#CEE6C1;
+  --sub:#BFD7EA;
+  --accent:#A8C9A1;
+  --text:#2F3A32;
+  --gray:#D8D8D8;
+
+  --card:#FFFDF9;
+  --muted:rgba(47,58,50,.52);
+  --faint:rgba(47,58,50,.32);
+  --line:rgba(47,58,50,.08);
+
+  --r-lg:22px;
+  --r-md:16px;
+  --r-sm:12px;
+
+  --shadow:0 1px 2px rgba(47,58,50,.04), 0 10px 28px rgba(47,58,50,.06);
+  --shadow-soft:0 1px 2px rgba(47,58,50,.03), 0 4px 14px rgba(47,58,50,.04);
+
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --pad:20px;
+
+  --season-dot:#CEE6C1;
+  --tint:rgba(168,201,161,.16);
+}
+
+/* 季節ごとの、ごく薄い色の移ろい（地色・カード・チェックの色） */
+body[data-season="spring"]{
+  --bg:#F6F0F1;      /* 桜のかすかな気配 */
+  --card:#FFFAFB;
+  --accent:#D4A5AE;  /* 花びらの色 */
+  --main:#EBCBD1;
+  --sub:#E0BFC7;
+  --tint:rgba(212,165,174,.16);
+}
+body[data-season="summer"]{
+  --bg:#F0F4F6;      /* 水と空 */
+  --card:#FAFDFE;
+  --accent:#96C5D6;
+  --main:#C6E2EC;
+  --sub:#BFD7EA;
+  --tint:rgba(150,197,214,.16);
+}
+body[data-season="autumn"]{
+  --bg:#F7F1E7;      /* 落ち葉のあたたかさ */
+  --card:#FFFBF4;
+  --accent:#D9AE85;
+  --main:#EFD8BE;
+  --sub:#E4C7A3;
+  --tint:rgba(217,174,133,.16);
+}
+body[data-season="winter"]{
+  --bg:#F1F3F5;      /* 霜と冬の空気 */
+  --card:#FBFDFE;
+  --accent:#A8BBC6;
+  --main:#D3DFE6;
+  --sub:#C3D3DD;
+  --tint:rgba(168,187,198,.18);
+}
+body[data-season] .season-btn .dot{background:var(--accent);}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  background:var(--bg);
+  min-height:100svh;
+  overscroll-behavior-y:contain;
+  -webkit-user-select:none;user-select:none;
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  letter-spacing:.01em;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom));
+  transition:background-color .6s var(--ease);
+}
+button{font-family:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer;}
+input{font-family:inherit;font-size:16px;color:inherit;-webkit-user-select:text;user-select:text;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px;}
+
+.wrap{max-width:560px;margin:0 auto;padding:0 var(--pad);}
+
+/* ---------- header ---------- */
+.appbar{
+  position:sticky;top:0;z-index:20;
+  padding-top:calc(env(safe-area-inset-top) + 14px);
+  padding-bottom:10px;
+  background:var(--bg);
+  transition:background-color .6s var(--ease);
+}
+.appbar-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.title{font-size:19px;font-weight:600;letter-spacing:.02em;margin:0;}
+.edit-toggle{
+  min-height:36px;padding:0 15px;border-radius:999px;
+  font-size:14px;font-weight:600;color:var(--muted);
+  background:rgba(255,255,255,.7);
+  box-shadow:var(--shadow-soft);
+  transition:background .2s var(--ease),color .2s var(--ease);
+}
+.edit-toggle[aria-pressed="true"]{background:var(--accent);color:#fff;}
+.bar-actions{display:flex;align-items:center;gap:8px;}
+.season-btn{
+  display:flex;align-items:center;gap:7px;
+  min-height:36px;padding:0 14px;border-radius:999px;
+  font-size:14px;font-weight:600;color:var(--muted);
+  background:rgba(255,255,255,.7);
+  box-shadow:var(--shadow-soft);
+  transition:opacity .2s var(--ease);
+}
+.season-btn:active{opacity:.65;}
+.season-btn .dot{
+  width:8px;height:8px;border-radius:50%;flex:none;
+  background:var(--season-dot);
+  transition:background-color .6s var(--ease);
+}
+.status,.items,.done-card{transition:background-color .6s var(--ease);}
+
+/* ---------- status ---------- */
+.status{
+  background:var(--card);
+  border-radius:var(--r-lg);
+  padding:22px 22px 20px;
+  box-shadow:var(--shadow);
+  margin-bottom:14px;
+}
+.status-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px;}
+.remain{display:flex;align-items:baseline;gap:8px;}
+.remain-num{font-size:44px;font-weight:600;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.remain-unit{font-size:15px;color:var(--muted);}
+.counts{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;}
+.bar{height:8px;border-radius:999px;background:var(--gray);overflow:hidden;}
+.bar-fill{
+  display:block;height:100%;width:0%;border-radius:999px;
+  background:linear-gradient(90deg,var(--main),var(--accent));
+  transition:width .5s var(--ease),background-image .6s var(--ease);
+}
+.status-note{margin:12px 0 0;font-size:13.5px;color:var(--muted);}
+
+/* ---------- next up ---------- */
+.next{
+  position:relative;
+  display:flex;align-items:center;gap:16px;width:100%;text-align:left;
+  background:var(--card);
+  border-radius:var(--r-lg);
+  padding:20px;
+  box-shadow:var(--shadow);
+  margin-bottom:26px;
+  transition:transform .16s var(--ease),box-shadow .2s var(--ease),background-color .6s var(--ease);
+}
+.next::before{
+  content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;
+  border-radius:0 3px 3px 0;background:var(--sub);
+}
+.next:active{transform:scale(.985);}
+.next-body{flex:1;min-width:0;transition:opacity .16s var(--ease),transform .16s var(--ease);}
+.next.swap .next-body{opacity:0;transform:translateY(4px);}
+.next-eyebrow{font-size:12px;font-weight:600;letter-spacing:.12em;color:var(--faint);margin-bottom:5px;}
+.next-text{font-size:19px;font-weight:600;line-height:1.4;word-break:break-word;}
+.next-cat{font-size:13px;color:var(--muted);margin-top:4px;}
+
+/* ---------- done card ---------- */
+.done-card{
+  display:flex;align-items:center;gap:14px;
+  background:var(--main);
+  border-radius:var(--r-lg);
+  padding:22px;
+  box-shadow:var(--shadow);
+  margin-bottom:26px;
+  animation:rise .5s var(--ease) both;
+}
+.done-card .mark{
+  width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.75);
+  display:grid;place-items:center;flex:none;
+}
+.done-card .mark svg{width:17px;height:17px;}
+.done-text{font-size:19px;font-weight:600;letter-spacing:.04em;}
+@keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+[hidden]{display:none !important;}
+
+/* ---------- category ---------- */
+.cat{margin-bottom:24px;}
+.cat-head{display:flex;align-items:center;gap:10px;padding:0 6px 8px;}
+.cat-name{font-size:15px;font-weight:600;letter-spacing:.03em;flex:1;min-width:0;word-break:break-word;}
+.cat-count{font-size:13px;color:var(--faint);font-variant-numeric:tabular-nums;flex:none;}
+.cat.complete .cat-name,.cat.complete .cat-count{color:var(--muted);}
+.cat-tools{display:none;gap:2px;flex:none;}
+body.editing .cat-tools{display:flex;}
+
+.items{
+  list-style:none;margin:0;padding:0;
+  background:var(--card);
+  border-radius:var(--r-lg);
+  box-shadow:var(--shadow-soft);
+  overflow:hidden;
+}
+.cat.complete .items{opacity:.72;}
+.item{display:flex;align-items:center;gap:2px;}
+.item + .item .row::before{
+  content:"";position:absolute;left:60px;right:0;top:0;height:1px;background:var(--line);
+}
+.row{
+  position:relative;
+  flex:1;min-width:0;
+  display:flex;align-items:center;gap:14px;
+  padding:15px 18px;min-height:58px;text-align:left;
+  transition:transform .16s var(--ease),background .2s var(--ease);
+}
+.row:active{background:var(--tint);}
+.item.pop .row{animation:pop .18s var(--ease);}
+@keyframes pop{0%{transform:scale(1);}45%{transform:scale(.975);}100%{transform:scale(1);}}
+
+.box{
+  flex:none;width:26px;height:26px;border-radius:50%;
+  border:2px solid var(--gray);background:transparent;
+  display:grid;place-items:center;
+  transition:background .18s var(--ease),border-color .18s var(--ease),transform .18s var(--ease);
+}
+.box svg{width:14px;height:14px;opacity:0;transform:scale(.7);transition:opacity .16s var(--ease),transform .18s var(--ease);}
+.box path{stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;fill:none;}
+.item.done .box{background:var(--accent);border-color:var(--accent);}
+.item.done .box svg{opacity:1;transform:scale(1);}
+.item-text{font-size:16px;line-height:1.45;word-break:break-word;transition:color .3s var(--ease),opacity .3s var(--ease);}
+.item.done .item-text{color:var(--muted);opacity:.62;}
+
+.tool{
+  width:38px;height:38px;border-radius:50%;flex:none;
+  display:grid;place-items:center;color:var(--faint);
+  transition:background .2s var(--ease),color .2s var(--ease);
+}
+.tool:active{background:rgba(47,58,50,.05);color:var(--muted);}
+.tool svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.tool.danger:active{color:#8a6a62;}
+.item-tools{display:none;padding-right:10px;gap:0;}
+body.editing .item-tools{display:flex;}
+body.editing .row{padding-right:6px;}
+
+.add-item{
+  display:none;width:100%;padding:14px 18px;min-height:52px;
+  align-items:center;gap:12px;font-size:15px;color:var(--muted);text-align:left;
+  border-top:1px solid var(--line);
+}
+body.editing .add-item{display:flex;}
+.add-item .plus{font-size:19px;line-height:1;color:var(--accent);}
+
+.add-cat{
+  display:none;width:100%;min-height:56px;margin:4px 0 8px;
+  align-items:center;justify-content:center;gap:8px;
+  border-radius:var(--r-lg);border:1.5px dashed rgba(47,58,50,.16);
+  font-size:15px;font-weight:600;color:var(--muted);
+}
+body.editing .add-cat{display:flex;}
+.reset{
+  display:none;width:100%;min-height:48px;margin:6px 0 4px;
+  align-items:center;justify-content:center;
+  font-size:14px;color:var(--faint);
+}
+body.editing .reset{display:flex;}
+
+.empty{
+  background:var(--card);border-radius:var(--r-lg);padding:34px 22px;text-align:center;
+  color:var(--muted);font-size:15px;box-shadow:var(--shadow-soft);
+}
+
+/* ---------- sheet ---------- */
+.backdrop{
+  position:fixed;inset:0;z-index:60;
+  background:rgba(47,58,50,.22);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:flex;align-items:flex-end;justify-content:center;
+  padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));
+  animation:fade .2s var(--ease);
+}
+@keyframes fade{from{opacity:0;}to{opacity:1;}}
+.sheet{
+  width:100%;max-width:520px;
+  background:var(--card);border-radius:26px;
+  padding:24px 22px 20px;
+  box-shadow:0 20px 50px rgba(47,58,50,.16);
+  animation:slideup .3s var(--ease);
+}
+@keyframes slideup{from{transform:translateY(18px);opacity:0;}to{transform:none;opacity:1;}}
+.sheet h2{margin:0 0 4px;font-size:17px;font-weight:600;}
+.sheet p{margin:0 0 18px;font-size:14px;color:var(--muted);}
+.sheet input{
+  width:100%;min-height:52px;padding:0 16px;margin-bottom:18px;
+  background:var(--bg);border:1.5px solid transparent;border-radius:var(--r-md);
+  transition:border-color .2s var(--ease);
+}
+.sheet input:focus{outline:none;border-color:var(--accent);}
+.options{display:flex;flex-direction:column;gap:2px;margin-bottom:18px;}
+.opt{
+  display:flex;align-items:center;gap:12px;
+  min-height:54px;padding:0 14px;border-radius:var(--r-md);
+  font-size:16px;text-align:left;
+  transition:background .2s var(--ease);
+}
+.opt:active{background:var(--bg);}
+.opt[aria-checked="true"]{background:var(--bg);font-weight:600;}
+.opt .dot{width:9px;height:9px;border-radius:50%;flex:none;}
+.opt .name{flex:1;min-width:0;}
+.opt .tick{width:18px;height:18px;flex:none;opacity:0;transition:opacity .2s var(--ease);}
+.opt[aria-checked="true"] .tick{opacity:1;}
+.opt .tick path{fill:none;stroke:var(--accent);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;}
+.sheet-actions{display:flex;gap:10px;}
+.btn{flex:1;min-height:50px;border-radius:var(--r-md);font-size:16px;font-weight:600;transition:opacity .2s var(--ease);}
+.btn:active{opacity:.7;}
+.btn.ghost{background:var(--bg);color:var(--muted);}
+.btn.primary{background:var(--accent);color:#fff;}
+.btn.destructive{background:#C7A9A2;color:#fff;}
+
+@media (min-width:600px){
+  :root{--pad:28px;}
+  body{padding-bottom:80px;}
+  .backdrop{align-items:center;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
+}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="wrap appbar-inner">
+    <h1 class="title">旅の準備</h1>
+    <div class="bar-actions">
+      <button class="season-btn" id="seasonBtn" aria-haspopup="dialog">
+        <span class="dot" aria-hidden="true"></span><span id="seasonName">夏</span>
+      </button>
+      <button class="edit-toggle" id="editToggle" aria-pressed="false">編集</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="status" aria-label="準備の進み具合">
+    <div class="status-top">
+      <div class="remain">
+        <span class="remain-num" id="remainNum">0</span>
+        <span class="remain-unit">項目のこり</span>
+      </div>
+      <div class="counts"><span id="doneNum">0</span> / <span id="totalNum">0</span> 完了</div>
+    </div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="達成率">
+      <span class="bar-fill" id="barFill"></span>
+    </div>
+    <p class="status-note" id="statusNote">出発できるまであと0項目</p>
+  </section>
+
+  <button class="next" id="nextCard" hidden>
+    <span class="next-body">
+      <span class="next-eyebrow">つぎはこれ</span>
+      <span class="next-text" id="nextText"></span>
+      <span class="next-cat" id="nextCat"></span>
+    </span>
+  </button>
+
+  <div class="done-card" id="doneCard" hidden>
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6.5" fill="none" stroke="#2F3A32" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <span class="done-text">準備完了</span>
+  </div>
+
+  <div id="list"></div>
+
+  <button class="add-cat" id="addCat">＋ カテゴリを追加</button>
+  <button class="reset" id="resetAll">この季節のチェックを外す</button>
+</main>
+
+<div class="backdrop" id="backdrop" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <h2 id="sheetTitle"></h2>
+    <p id="sheetMsg"></p>
+    <div class="options" id="sheetOptions" hidden></div>
+    <input id="sheetInput" type="text" autocomplete="off" enterkeyhint="done">
+    <div class="sheet-actions">
+      <button class="btn ghost" id="sheetCancel">キャンセル</button>
+      <button class="btn primary" id="sheetOk">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var KEY = "travel-prep-v1";
+
+var SEASONS = [
+  {key:"spring", label:"春", dot:"#D4A5AE", bg:"#F6F0F1"},
+  {key:"summer", label:"夏", dot:"#96C5D6", bg:"#F0F4F6"},
+  {key:"autumn", label:"秋", dot:"#D9AE85", bg:"#F7F1E7"},
+  {key:"winter", label:"冬", dot:"#A8BBC6", bg:"#F1F3F5"}
+];
+var KEYS = SEASONS.map(function(s){ return s.key; });
+var BY_LABEL = {"春":"spring","夏":"summer","秋":"autumn","冬":"winter"};
+
+function seasonInfo(key){
+  for(var i=0;i<SEASONS.length;i++){ if(SEASONS[i].key === key) return SEASONS[i]; }
+  return SEASONS[0];
+}
+
+var DEFAULTS = [
+  {name:"冬", only:["winter"], items:["マフラー","手袋"]},
+  {name:"夏", only:["summer"], items:["汗拭きシート","扇風機","日焼けどめ"]},
+  {name:"ショルダーバッグ", items:["スマホ","モバイルバッテリー","財布","イヤホン","マスク","リップ","ハンカチティッシュ"]},
+  {name:"大きいカバン", items:["ヘアアイロン（今回は自分のがいい）","歯ブラシ、歯間ブラシ","ヘアオイル","コンタクトケースと液、替えのコンタクト","薬","靴下","折り畳み傘","生理用品","スマホ充電器、コード","予備のマスク","制汗剤3つ","メイクセット","下着、キャミ","めがね","2日目の服","パソコン","勉強グッズ"]},
+  {name:"あるか確認して、なければ持って行く", items:["パジャマ","ドライヤー"]}
+];
+
+var uid = function(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); };
+
+function seasonOfToday(){
+  var m = new Date().getMonth() + 1;
+  if(m >= 3 && m <= 5) return "spring";
+  if(m >= 6 && m <= 8) return "summer";
+  if(m >= 9 && m <= 11) return "autumn";
+  return "winter";
+}
+
+function buildDefaults(){
+  var out = {};
+  KEYS.forEach(function(k){
+    out[k] = { categories: DEFAULTS.filter(function(c){
+      return !c.only || c.only.indexOf(k) >= 0;
+    }).map(function(c){
+      return { id:uid(), name:c.name, items:c.items.map(function(t){ return {id:uid(), text:t, done:false}; }) };
+    }) };
+  });
+  return out;
+}
+
+function cleanCat(c){
+  return {
+    id: uid(),
+    name: String((c && c.name) || ""),
+    items: (c && Array.isArray(c.items) ? c.items : []).map(function(i){
+      return { id:uid(), text:String((i && i.text) || ""), done: !!(i && i.done) };
+    })
+  };
+}
+
+/* 旧データ（季節なし）を4季節に振り分ける。冬・夏などの季節名カテゴリは該当季節だけに残す */
+function splitLegacy(cats){
+  var out = {};
+  KEYS.forEach(function(k){
+    out[k] = { categories: cats.filter(function(c){
+      var tag = BY_LABEL[String((c && c.name) || "").trim()];
+      return tag ? tag === k : true;
+    }).map(cleanCat) };
+  });
+  return out;
+}
+
+var store = load();
+var data;
+
+function load(){
+  var fresh = function(){ return {version:2, season:seasonOfToday(), seasons:buildDefaults()}; };
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(!raw) return fresh();
+    var p = JSON.parse(raw);
+    if(!p) return fresh();
+    if(p.seasons){
+      var seasons = {};
+      KEYS.forEach(function(k){
+        var s = p.seasons[k];
+        seasons[k] = { categories: (s && Array.isArray(s.categories) ? s.categories : []).map(cleanCat) };
+      });
+      return { version:2, season: KEYS.indexOf(p.season) >= 0 ? p.season : seasonOfToday(), seasons:seasons };
+    }
+    if(Array.isArray(p.categories)){
+      return { version:2, season:seasonOfToday(), seasons:splitLegacy(p.categories) };
+    }
+    return fresh();
+  }catch(e){ return fresh(); }
+}
+
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){}
+}
+
+/* ---------- elements ---------- */
+var listEl = document.getElementById("list");
+var remainNum = document.getElementById("remainNum");
+var doneNum = document.getElementById("doneNum");
+var totalNum = document.getElementById("totalNum");
+var barFill = document.getElementById("barFill");
+var bar = barFill.parentNode;
+var statusNote = document.getElementById("statusNote");
+var nextCard = document.getElementById("nextCard");
+var nextText = document.getElementById("nextText");
+var nextCat = document.getElementById("nextCat");
+var doneCard = document.getElementById("doneCard");
+var editToggle = document.getElementById("editToggle");
+var seasonBtn = document.getElementById("seasonBtn");
+var seasonName = document.getElementById("seasonName");
+var themeMeta = document.querySelector('meta[name="theme-color"]');
+
+var SVG_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>';
+var ICONS = {
+  pencil:'<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2 2 0 0 0-3-3L5 17v3z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>',
+  up:'<svg viewBox="0 0 24 24"><path d="M6 14l6-6 6 6"/></svg>',
+  down:'<svg viewBox="0 0 24 24"><path d="M6 10l6 6 6-6"/></svg>'
+};
+
+function el(tag, cls, text){
+  var n = document.createElement(tag);
+  if(cls) n.className = cls;
+  if(text != null) n.textContent = text;
+  return n;
+}
+function toolBtn(icon, label, cls){
+  var b = el("button", "tool" + (cls ? " " + cls : ""));
+  b.type = "button";
+  b.innerHTML = ICONS[icon];
+  b.setAttribute("aria-label", label);
+  b.title = label;
+  return b;
+}
+
+/* ---------- render ---------- */
+function render(){
+  listEl.innerHTML = "";
+
+  if(data.length === 0){
+    var empty = el("div","empty","カテゴリがありません。編集から追加できます。");
+    listEl.appendChild(empty);
+    updateStats();
+    return;
+  }
+
+  data.forEach(function(cat, ci){
+    var section = el("section","cat");
+    section.dataset.cat = cat.id;
+
+    var head = el("div","cat-head");
+    head.appendChild(el("h2","cat-name",cat.name));
+    var doneCount = cat.items.filter(function(i){ return i.done; }).length;
+    head.appendChild(el("span","cat-count", doneCount + "/" + cat.items.length));
+
+    var tools = el("div","cat-tools");
+    var up = toolBtn("up","カテゴリを上へ移動");
+    up.disabled = ci === 0; up.style.opacity = ci === 0 ? ".3" : "";
+    up.onclick = function(){ moveCat(ci,-1); };
+    var down = toolBtn("down","カテゴリを下へ移動");
+    down.disabled = ci === data.length-1; down.style.opacity = ci === data.length-1 ? ".3" : "";
+    down.onclick = function(){ moveCat(ci,1); };
+    var ed = toolBtn("pencil","カテゴリ名を変更");
+    ed.onclick = function(){ editCat(ci); };
+    var del = toolBtn("trash","カテゴリを削除","danger");
+    del.onclick = function(){ deleteCat(ci); };
+    tools.appendChild(up); tools.appendChild(down); tools.appendChild(ed); tools.appendChild(del);
+    head.appendChild(tools);
+    section.appendChild(head);
+
+    var ul = el("ul","items");
+
+    cat.items.forEach(function(item, ii){
+      var li = el("li","item" + (item.done ? " done" : ""));
+      li.dataset.id = item.id;
+
+      var row = el("button","row");
+      row.type = "button";
+      row.setAttribute("role","checkbox");
+      row.setAttribute("aria-checked", item.done ? "true" : "false");
+      var box = el("span","box");
+      box.innerHTML = SVG_CHECK;
+      row.appendChild(box);
+      row.appendChild(el("span","item-text",item.text));
+      row.onclick = function(){ toggle(ci, ii, li, row); };
+      li.appendChild(row);
+
+      var itools = el("div","item-tools");
+      var iu = toolBtn("up","項目を上へ移動");
+      iu.disabled = ii === 0; iu.style.opacity = ii === 0 ? ".3" : "";
+      iu.onclick = function(){ moveItem(ci,ii,-1); };
+      var idn = toolBtn("down","項目を下へ移動");
+      idn.disabled = ii === cat.items.length-1; idn.style.opacity = ii === cat.items.length-1 ? ".3" : "";
+      idn.onclick = function(){ moveItem(ci,ii,1); };
+      var ie = toolBtn("pencil","項目を編集");
+      ie.onclick = function(){ editItem(ci,ii); };
+      var idel = toolBtn("trash","項目を削除","danger");
+      idel.onclick = function(){ deleteItem(ci,ii); };
+      itools.appendChild(iu); itools.appendChild(idn); itools.appendChild(ie); itools.appendChild(idel);
+      li.appendChild(itools);
+
+      ul.appendChild(li);
+    });
+
+    var addLi = el("li");
+    var addBtn = el("button","add-item");
+    addBtn.type = "button";
+    addBtn.innerHTML = '<span class="plus">＋</span><span>項目を追加</span>';
+    addBtn.onclick = function(){ addItem(ci); };
+    addLi.appendChild(addBtn);
+    ul.appendChild(addLi);
+
+    section.appendChild(ul);
+    if(cat.items.length > 0 && doneCount === cat.items.length) section.classList.add("complete");
+    listEl.appendChild(section);
+  });
+
+  updateStats();
+}
+
+/* ---------- stats ---------- */
+function counts(){
+  var total = 0, done = 0;
+  data.forEach(function(c){
+    c.items.forEach(function(i){ total++; if(i.done) done++; });
+  });
+  return {total:total, done:done, remain:total-done};
+}
+
+function firstUndone(){
+  for(var ci=0; ci<data.length; ci++){
+    for(var ii=0; ii<data[ci].items.length; ii++){
+      if(!data[ci].items[ii].done) return {cat:data[ci], item:data[ci].items[ii]};
+    }
+  }
+  return null;
+}
+
+function updateStats(animateSwap){
+  var c = counts();
+  remainNum.textContent = c.remain;
+  doneNum.textContent = c.done;
+  totalNum.textContent = c.total;
+  var pct = c.total === 0 ? 0 : Math.round(c.done / c.total * 100);
+  barFill.style.width = pct + "%";
+  bar.setAttribute("aria-valuenow", String(pct));
+  statusNote.textContent = c.total === 0
+    ? "項目を追加すると進み具合が表示されます"
+    : (c.remain === 0 ? "すべての項目を確認しました" : "出発できるまであと" + c.remain + "項目");
+
+  var next = firstUndone();
+  if(next){
+    doneCard.hidden = true;
+    var apply = function(){
+      nextText.textContent = next.item.text;
+      nextCat.textContent = next.cat.name;
+    };
+    if(animateSwap && !nextCard.hidden){
+      nextCard.classList.add("swap");
+      setTimeout(function(){ apply(); nextCard.classList.remove("swap"); }, 150);
+    }else{
+      apply();
+    }
+    nextCard.hidden = false;
+    nextCard.setAttribute("aria-label","つぎに準備するもの " + next.item.text + "、チェックする");
+  }else{
+    nextCard.hidden = true;
+    doneCard.hidden = counts().total === 0;
+  }
+}
+
+/* ---------- actions ---------- */
+function toggle(ci, ii, li, row){
+  var item = data[ci].items[ii];
+  item.done = !item.done;
+  li.classList.toggle("done", item.done);
+  row.setAttribute("aria-checked", item.done ? "true" : "false");
+  li.classList.remove("pop");
+  void li.offsetWidth;
+  li.classList.add("pop");
+
+  var section = li.closest(".cat");
+  var cat = data[ci];
+  var dc = cat.items.filter(function(i){ return i.done; }).length;
+  section.querySelector(".cat-count").textContent = dc + "/" + cat.items.length;
+  section.classList.toggle("complete", cat.items.length > 0 && dc === cat.items.length);
+
+  updateStats(true);
+  save();
+}
+
+nextCard.onclick = function(){
+  var next = firstUndone();
+  if(!next) return;
+  var li = listEl.querySelector('[data-id="' + next.item.id + '"]');
+  if(li){ li.querySelector(".row").click(); return; }
+  next.item.done = true;
+  render(); save();
+};
+
+function moveCat(ci, dir){
+  var t = ci + dir;
+  if(t < 0 || t >= data.length) return;
+  var tmp = data[ci]; data[ci] = data[t]; data[t] = tmp;
+  render(); save();
+}
+function moveItem(ci, ii, dir){
+  var items = data[ci].items;
+  var t = ii + dir;
+  if(t < 0 || t >= items.length) return;
+  var tmp = items[ii]; items[ii] = items[t]; items[t] = tmp;
+  render(); save();
+}
+
+function addCatFn(){
+  openSheet({
+    title:"カテゴリを追加",
+    msg:"バッグや季節など、まとめる単位で名前をつけます。",
+    value:"",
+    placeholder:"例：ショルダーバッグ",
+    ok:"追加する",
+    onOk:function(v){ data.push({id:uid(), name:v, items:[]}); render(); save(); }
+  });
+}
+function editCat(ci){
+  openSheet({
+    title:"カテゴリ名を変更", msg:"", value:data[ci].name, ok:"保存する",
+    onOk:function(v){ data[ci].name = v; render(); save(); }
+  });
+}
+function deleteCat(ci){
+  openSheet({
+    title:"「" + data[ci].name + "」を削除しますか",
+    msg:"中の項目もすべて削除されます。",
+    input:false, ok:"削除する", destructive:true,
+    onOk:function(){ data.splice(ci,1); render(); save(); }
+  });
+}
+function addItem(ci){
+  openSheet({
+    title:"項目を追加", msg:data[ci].name, value:"", placeholder:"例：モバイルバッテリー", ok:"追加する",
+    onOk:function(v){ data[ci].items.push({id:uid(), text:v, done:false}); render(); save(); }
+  });
+}
+function editItem(ci, ii){
+  openSheet({
+    title:"項目を編集", msg:"", value:data[ci].items[ii].text, ok:"保存する",
+    onOk:function(v){ data[ci].items[ii].text = v; render(); save(); }
+  });
+}
+function deleteItem(ci, ii){
+  openSheet({
+    title:"「" + data[ci].items[ii].text + "」を削除しますか",
+    msg:"", input:false, ok:"削除する", destructive:true,
+    onOk:function(){ data[ci].items.splice(ii,1); render(); save(); }
+  });
+}
+
+/* ---------- season ---------- */
+function applySeason(){
+  var s = seasonInfo(store.season);
+  data = store.seasons[store.season].categories;
+  document.body.setAttribute("data-season", s.key);
+  seasonName.textContent = s.label;
+  seasonBtn.setAttribute("aria-label", "季節を変更。現在は" + s.label);
+  if(themeMeta) themeMeta.setAttribute("content", s.bg);
+}
+
+seasonBtn.onclick = function(){
+  openSheet({
+    title:"季節を選ぶ",
+    msg:"持ち物とチェックは季節ごとに分けて保存されます。",
+    input:false,
+    options:SEASONS,
+    selected:store.season,
+    onSelect:function(k){
+      if(k === store.season) return;
+      store.season = k;
+      applySeason();
+      render();
+      save();
+    }
+  });
+};
+
+document.getElementById("addCat").onclick = addCatFn;
+document.getElementById("resetAll").onclick = function(){
+  openSheet({
+    title:"「" + seasonInfo(store.season).label + "」のチェックを外しますか",
+    msg:"項目はそのまま残り、次の準備に使えます。他の季節には影響しません。",
+    input:false, ok:"外す",
+    onOk:function(){
+      data.forEach(function(c){ c.items.forEach(function(i){ i.done = false; }); });
+      render(); save();
+    }
+  });
+};
+
+editToggle.onclick = function(){
+  var on = document.body.classList.toggle("editing");
+  editToggle.setAttribute("aria-pressed", on ? "true" : "false");
+  editToggle.textContent = on ? "完了" : "編集";
+};
+
+/* ---------- sheet ---------- */
+var backdrop = document.getElementById("backdrop");
+var sheetTitle = document.getElementById("sheetTitle");
+var sheetMsg = document.getElementById("sheetMsg");
+var sheetInput = document.getElementById("sheetInput");
+var sheetOptions = document.getElementById("sheetOptions");
+var sheetOk = document.getElementById("sheetOk");
+var sheetCancel = document.getElementById("sheetCancel");
+var current = null;
+var lastFocus = null;
+
+function openSheet(opt){
+  current = opt;
+  lastFocus = document.activeElement;
+  sheetTitle.textContent = opt.title;
+  sheetMsg.textContent = opt.msg || "";
+  sheetMsg.hidden = !opt.msg;
+  var useInput = opt.input !== false;
+  sheetInput.hidden = !useInput;
+  sheetInput.value = useInput ? (opt.value || "") : "";
+  sheetInput.placeholder = opt.placeholder || "";
+  sheetOk.textContent = opt.ok || "保存";
+  sheetOk.className = "btn " + (opt.destructive ? "destructive" : "primary");
+
+  sheetOptions.innerHTML = "";
+  if(opt.options){
+    sheetOptions.setAttribute("role","radiogroup");
+    opt.options.forEach(function(o){
+      var b = el("button","opt");
+      b.type = "button";
+      b.setAttribute("role","radio");
+      b.setAttribute("aria-checked", o.key === opt.selected ? "true" : "false");
+      var dot = el("span","dot");
+      dot.style.background = o.dot;
+      dot.setAttribute("aria-hidden","true");
+      b.appendChild(dot);
+      b.appendChild(el("span","name",o.label));
+      var tick = document.createElement("span");
+      tick.className = "tick";
+      tick.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>';
+      tick.querySelector("svg").setAttribute("width","18");
+      tick.querySelector("svg").setAttribute("height","18");
+      b.appendChild(tick);
+      b.onclick = function(){ closeSheet(); opt.onSelect(o.key); };
+      sheetOptions.appendChild(b);
+    });
+    sheetOptions.hidden = false;
+    sheetOk.hidden = true;
+    sheetCancel.textContent = "閉じる";
+  }else{
+    sheetOptions.hidden = true;
+    sheetOk.hidden = false;
+    sheetCancel.textContent = "キャンセル";
+  }
+
+  backdrop.hidden = false;
+  if(useInput){ setTimeout(function(){ sheetInput.focus(); sheetInput.select(); }, 60); }
+  else if(opt.options){
+    setTimeout(function(){
+      var sel = sheetOptions.querySelector('[aria-checked="true"]') || sheetOptions.firstChild;
+      if(sel) sel.focus();
+    }, 60);
+  }
+  else { setTimeout(function(){ sheetOk.focus(); }, 60); }
+}
+function closeSheet(){
+  backdrop.hidden = true;
+  current = null;
+  if(lastFocus && lastFocus.focus) lastFocus.focus();
+}
+function confirmSheet(){
+  if(!current || !current.onOk) return;
+  var opt = current;
+  if(opt.input !== false){
+    var v = sheetInput.value.trim();
+    if(!v){ sheetInput.focus(); return; }
+    closeSheet();
+    opt.onOk(v);
+  }else{
+    closeSheet();
+    opt.onOk();
+  }
+}
+sheetOk.onclick = confirmSheet;
+sheetCancel.onclick = closeSheet;
+backdrop.onclick = function(e){ if(e.target === backdrop) closeSheet(); };
+sheetInput.onkeydown = function(e){ if(e.key === "Enter") confirmSheet(); };
+document.addEventListener("keydown", function(e){ if(e.key === "Escape" && !backdrop.hidden) closeSheet(); });
+
+applySeason();
+render();
+})();
+
+/* ホーム画面に追加したときにオフラインでも開けるようにする（相対パス登録） */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("./sw.js").catch(function(){ /* 未対応でもアプリは通常どおり動きます */ });
+  });
+}
+</script>
+</body>
+</html>
